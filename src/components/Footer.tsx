@@ -1,38 +1,51 @@
-import { GithubLogo, LinkedinLogo } from '@phosphor-icons/react'
+import { GithubIcon, LinkedinIcon } from './icons'
 import { SITE } from '@/lib/site'
-
-const linkClass =
-  'inline-flex items-center gap-2 text-sm text-ink-2 underline decoration-rule underline-offset-4 transition-colors duration-150 hover:text-ink hover:decoration-accent'
 
 export default function Footer() {
   return (
-    <footer className="mt-24 border-t border-rule">
-      <div className="page grid gap-8 py-10 md:grid-cols-12 md:items-end">
-        <div className="md:col-span-7">
-          <p className="font-display text-display-sm font-extrabold uppercase">Movie Explorer</p>
-          <p className="measure mt-3 text-sm text-ink-2">
-            Built by {SITE.author}, {SITE.year}. Show data comes from the{' '}
-            <a href="https://www.tvmaze.com/api" target="_blank" rel="noreferrer" className={linkClass}>
+    <footer className="mt-20 border-t border-line/70 bg-ink-2">
+      <div className="container-px flex flex-col items-center gap-6 py-10 md:flex-row md:justify-between">
+        <div className="text-center md:text-left">
+          <p className="font-display text-lg font-bold">
+            Movie<span className="text-gold">Explorer</span>
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            © {SITE.year} {SITE.brand}. Built by {SITE.author}.
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Data provided by{' '}
+            <a
+              href="https://www.tvmaze.com/api"
+              target="_blank"
+              rel="noreferrer"
+              className="text-gold/90 hover:underline"
+            >
               TVMaze API
-            </a>{' '}
-            under CC BY-SA.
+            </a>
+            .
           </p>
         </div>
 
-        <ul className="flex gap-6 md:col-span-5 md:justify-end">
-          <li>
-            <a href={SITE.github} target="_blank" rel="noreferrer" className={linkClass}>
-              <GithubLogo size={18} aria-hidden="true" />
-              GitHub
-            </a>
-          </li>
-          <li>
-            <a href={SITE.linkedin} target="_blank" rel="noreferrer" className={linkClass}>
-              <LinkedinLogo size={18} aria-hidden="true" />
-              LinkedIn
-            </a>
-          </li>
-        </ul>
+        <div className="flex items-center gap-3">
+          <a
+            href={SITE.github}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub"
+            className="grid h-10 w-10 place-items-center rounded-full border border-line text-muted transition-colors hover:border-gold hover:text-gold"
+          >
+            <GithubIcon className="h-5 w-5" />
+          </a>
+          <a
+            href={SITE.linkedin}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="LinkedIn"
+            className="grid h-10 w-10 place-items-center rounded-full border border-line text-muted transition-colors hover:border-gold hover:text-gold"
+          >
+            <LinkedinIcon className="h-5 w-5" />
+          </a>
+        </div>
       </div>
     </footer>
   )

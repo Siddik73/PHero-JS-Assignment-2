@@ -1,27 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { ArrowUpRight, X } from '@phosphor-icons/react'
+import { useEffect, useState } from 'react'
 import type { Show } from '@/types/show'
-import { getShowById, stripHtml } from '@/lib/tvmaze'
-import Poster from './Poster'
-import { LineSkeleton } from './Loader'
+import { getShowById, getYear, POSTER_FALLBACK, stripHtml } from '@/lib/tvmaze'
+import { CloseIcon, StarIcon } from './icons'
+import { Spinner } from './Loader'
 
 type Props = {
   show: Show | null
   onClose: () => void
 }
 
-const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-
-function formatDate(date: string | null): string {
-  if (!date) return 'Undated'
-  const d = new Date(`${date}T00:00:00`)
-  return Number.isNaN(d.getTime()) ? date : dateFormat.format(d)
-}
-
 export default function MovieModal({ show, onClose }: Props) {
   const [details, setDetails] = useState<Show | null>(null)
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!show) return
@@ -34,36 +23,9 @@ export default function MovieModal({ show, onClose }: Props) {
     }
   }, [show])
 
-  // Move focus into the sheet on open, hand it back to the card on close.
   useEffect(() => {
     if (!show) return
-    const previouslyFocused = document.activeElement as HTMLElement | null
-    closeRef.current?.focus()
-    return () => previouslyFocused?.focus()
-  }, [show])
-
-  useEffect(() => {
-    if (!show) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-        return
-      }
-      // Keep Tab inside the sheet while it is open.
-      if (e.key === 'Tab' && sheetRef.current) {
-        const focusable = sheetRef.current.querySelectorAll<HTMLElement>('a[href], button')
-        if (focusable.length === 0) return
-        const first = focusable[0]
-        const last = focusable[focusable.length - 1]
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
@@ -77,110 +39,122 @@ export default function MovieModal({ show, onClose }: Props) {
   const enriched = details && details.id === show.id ? details : null
   const data = enriched ?? show
   const loading = !enriched
+  const poster = data.image?.original ?? data.image?.medium ?? POSTER_FALLBACK
   const rating = data.rating?.average
-  const cast = data._embedded?.cast?.slice(0, 8) ?? []
+  const cast = data._embedded?.cast?.slice(0, 6) ?? []
   const channel = data.network?.name ?? data.webChannel?.name
-  const runtime = data.runtime ?? data.averageRuntime
-  const summary = stripHtml(data.summary)
 
   return (
     <div
-      className="fixed inset-0 z-50 flex animate-scrim-in items-start justify-center overflow-y-auto bg-scrim sm:items-center sm:p-6"
+      className="animate-fade-in fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/80 p-4 backdrop-blur-sm sm:items-center"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${data.name} details`}
     >
       <div
-        ref={sheetRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="sheet-title"
-        className="sheet-scroll relative w-full max-w-4xl animate-sheet-in bg-paper shadow-lift sm:max-h-[90dvh] sm:overflow-y-auto"
+        className="animate-fade-up scroll-thin relative my-4 max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-line bg-surface shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          ref={closeRef}
-          type="button"
           onClick={onClose}
-          aria-label="Close details"
-          className="absolute right-0 top-0 z-10 grid h-12 w-12 place-items-center bg-paper text-ink transition-colors duration-150 hover:bg-ink hover:text-paper"
+          aria-label="Close"
+          className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-ink/70 text-text backdrop-blur transition-colors hover:bg-gold hover:text-ink"
         >
-          <X size={22} weight="bold" aria-hidden="true" />
+          <CloseIcon className="h-5 w-5" />
         </button>
 
-        <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-5 gap-y-8 p-5 pt-6 sm:grid-cols-[15rem_minmax(0,1fr)] sm:gap-x-10 sm:p-10">
-          <div className="sm:row-span-2">
-            <Poster show={data} size="original" eager />
-          </div>
+        <div className="relative h-48 w-full overflow-hidden sm:h-60">
+          <img src={poster} alt="" className="h-full w-full object-cover object-top blur-[2px]" />
+          <div className="absolute inset-0 bg-linear-to-t from-surface via-surface/70 to-transparent" />
+        </div>
 
-          <header className="min-w-0 pr-10 sm:pr-8">
-            <h2
-              id="sheet-title"
-              className="font-display text-[2.25rem] font-extrabold uppercase leading-[0.92] wrap-break-word sm:text-display"
-            >
-              {data.name}
-            </h2>
-            <p className="mt-3 text-ink-2">
-              {data.genres.length > 0 ? data.genres.join(', ') : 'Genre not listed'}
-            </p>
-            {rating != null && (
-              <p className="mt-4 flex items-baseline gap-2 sm:mt-6">
-                <span className="font-display text-display-sm font-extrabold leading-none text-accent sm:text-display">
-                  {rating.toFixed(1)}
-                </span>
-                <span className="index-line">TVMaze rating, out of 10</span>
-              </p>
-            )}
-          </header>
+        <div className="px-5 pb-6 sm:px-8">
+          <div className="-mt-24 flex flex-col gap-5 sm:flex-row">
+            <img
+              src={data.image?.medium ?? POSTER_FALLBACK}
+              alt={data.name}
+              className="h-56 w-40 shrink-0 self-center rounded-xl border border-line object-cover shadow-lg sm:self-start"
+            />
+            <div className="pt-2 sm:pt-24">
+              <h2 className="font-display text-2xl font-bold sm:text-3xl">{data.name}</h2>
 
-          <div className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2">
-            <p className="measure leading-relaxed">
-              {summary || 'TVMaze has no synopsis on file for this one.'}
-            </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                {rating != null && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 px-3 py-1 font-semibold text-gold">
+                    <StarIcon className="h-4 w-4" />
+                    {rating.toFixed(1)}
+                  </span>
+                )}
+                <span className="text-muted">Released: {data.premiered ?? 'N/A'}</span>
+                {data.status && (
+                  <span className="rounded-full border border-line px-3 py-1 text-xs text-muted">
+                    {data.status}
+                  </span>
+                )}
+              </div>
 
-            <dl className="mt-8 grid grid-cols-2 gap-x-6 border-t border-rule md:grid-cols-3">
-              <Meta label="Premiered" value={formatDate(data.premiered)} />
-              <Meta label="Status" value={data.status || 'Unknown'} />
-              <Meta label="Language" value={data.language ?? 'Unknown'} />
-              <Meta label="Network" value={channel ?? 'Unknown'} />
-              <Meta label="Runtime" value={runtime != null ? `${runtime} min` : 'Varies'} />
-            </dl>
-
-            <section aria-labelledby="cast-title" className="mt-8">
-              <h3 id="cast-title" className="text-sm font-semibold">
-                Cast
-              </h3>
-              {loading && cast.length === 0 ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2" role="status">
-                  <span className="sr-only">Loading cast</span>
-                  {[0, 1, 2, 3].map((i) => (
-                    <LineSkeleton key={i} className={i % 2 ? 'w-2/3' : 'w-5/6'} />
+              {data.genres.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {data.genres.map((g) => (
+                    <span
+                      key={g}
+                      className="rounded-full bg-surface-2 px-3 py-1 text-xs text-text"
+                    >
+                      {g}
+                    </span>
                   ))}
                 </div>
-              ) : cast.length > 0 ? (
-                <ul className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
-                  {cast.map((c) => (
-                    <li key={`${c.person.id}-${c.character.id}`} className="min-w-0 text-sm">
-                      <span className="font-medium">{c.person.name}</span>
-                      <span className="text-muted"> as {c.character.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-muted">No cast listed.</p>
               )}
-            </section>
-
-            {data.officialSite && (
-              <a
-                href={data.officialSite}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-10 inline-flex items-center gap-2 bg-ink px-5 py-3 text-sm font-medium text-paper transition-colors duration-150 hover:bg-accent hover:text-on-accent active:translate-y-px"
-              >
-                Official site
-                <ArrowUpRight size={16} weight="bold" aria-hidden="true" />
-              </a>
-            )}
+            </div>
           </div>
+
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">Overview</h3>
+            <p className="mt-2 leading-relaxed text-text/90">
+              {stripHtml(data.summary) || 'No overview available for this title.'}
+            </p>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+            <Meta label="Premiered" value={getYear(data.premiered)} />
+            <Meta label="Language" value={data.language ?? 'N/A'} />
+            <Meta label="Network" value={channel ?? 'N/A'} />
+            {data.runtime != null && <Meta label="Runtime" value={`${data.runtime} min`} />}
+          </div>
+
+          {loading && cast.length === 0 && (
+            <div className="mt-6 flex justify-center">
+              <Spinner />
+            </div>
+          )}
+          {cast.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">Cast</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {cast.map((c) => (
+                  <span
+                    key={c.person.id}
+                    className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs"
+                  >
+                    <span className="text-text">{c.person.name}</span>
+                    <span className="text-muted"> as {c.character.name}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {data.officialSite && (
+            <a
+              href={data.officialSite}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-block rounded-full bg-gold px-6 py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-105"
+            >
+              Visit Official Site
+            </a>
+          )}
         </div>
       </div>
     </div>
@@ -189,9 +163,9 @@ export default function MovieModal({ show, onClose }: Props) {
 
 function Meta({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-b border-rule py-3">
-      <dt className="index-line">{label}</dt>
-      <dd className="mt-0.5 text-sm font-medium">{value}</dd>
+    <div className="rounded-lg border border-line/70 bg-ink-2 px-3 py-2">
+      <p className="text-xs text-muted">{label}</p>
+      <p className="mt-0.5 font-medium">{value}</p>
     </div>
   )
 }

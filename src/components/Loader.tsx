@@ -1,28 +1,25 @@
-// Placeholders share the exact geometry of what they stand in for,
-// so nothing jumps when the real posters land.
-
-export function PosterSkeleton({ className = '' }: { className?: string }) {
+export function Spinner() {
   return (
-    <span aria-hidden="true" className={`block ${className}`}>
-      <span className="block aspect-2/3 animate-breathe bg-paper-2" />
-      <span className="mt-3 block border-t border-rule pt-2">
-        <span className="block h-4 w-3/4 animate-breathe bg-paper-2" />
-        <span className="mt-2 block h-3 w-1/2 animate-breathe bg-paper-2" />
-      </span>
-    </span>
+    <div
+      className="h-10 w-10 animate-spin rounded-full border-4 border-line border-t-gold"
+      role="status"
+      aria-label="Loading"
+    />
   )
 }
 
-export function LineSkeleton({ className = '' }: { className?: string }) {
-  return <span aria-hidden="true" className={`block h-3 animate-breathe bg-paper-2 ${className}`} />
-}
-
-export function CardSkeletonGrid({ count = 12, lead = true }: { count?: number; lead?: boolean }) {
+export function CardSkeletonGrid({ count = 12 }: { count?: number }) {
   return (
-    <div role="status" aria-live="polite" className="grid-catalogue">
-      <span className="sr-only">Loading shows</span>
+    <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {Array.from({ length: count }).map((_, i) => (
-        <PosterSkeleton key={i} className={lead && i === 0 ? 'lead-cell' : ''} />
+        <div key={i} className="overflow-hidden rounded-2xl border border-line/70 bg-surface">
+          <div className="aspect-2/3 animate-pulse bg-surface-2" />
+          <div className="space-y-2 p-4">
+            <div className="h-4 w-3/4 animate-pulse rounded bg-surface-2" />
+            <div className="h-3 w-1/2 animate-pulse rounded bg-surface-2" />
+            <div className="mt-3 h-8 w-full animate-pulse rounded bg-surface-2" />
+          </div>
+        </div>
       ))}
     </div>
   )

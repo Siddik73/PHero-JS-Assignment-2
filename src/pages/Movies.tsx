@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Show } from '@/types/show'
 import { fetchShows, searchShows } from '@/lib/tvmaze'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -6,7 +6,11 @@ import SearchBar from '@/components/SearchBar'
 import MovieGrid from '@/components/MovieGrid'
 import MovieModal from '@/components/MovieModal'
 
-type SearchState = { q: string; attempt: number; shows: Show[]; error: string | null }
+type SearchState = {
+  query: string
+  shows: Show[]
+  error: string | null
+}
 
 export default function Movies() {
   const [query, setQuery] = useState('')
@@ -15,10 +19,7 @@ export default function Movies() {
   const [defaultShows, setDefaultShows] = useState<Show[]>([])
   const [listLoading, setListLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
-  const [listAttempt, setListAttempt] = useState(0)
-  // Search results remember which query and attempt they answer, so loading is derived, not set.
   const [search, setSearch] = useState<SearchState | null>(null)
-  const [searchAttempt, setSearchAttempt] = useState(0)
   const [selected, setSelected] = useState<Show | null>(null)
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function Movies() {
     return () => {
       active = false
     }
-  }, [listAttempt])
+  }, [])
 
   useEffect(() => {
     const q = debouncedQuery.trim()
@@ -44,13 +45,12 @@ export default function Movies() {
 
     let active = true
     searchShows(q)
-      .then((shows) => active && setSearch({ q, attempt: searchAttempt, shows, error: null }))
+      .then((shows) => active && setSearch({ query: q, shows, error: null }))
       .catch(
         (e: unknown) =>
           active &&
           setSearch({
-            q,
-            attempt: searchAttempt,
+            query: q,
             shows: [],
             error: e instanceof Error ? e.message : 'Search failed',
           }),
@@ -58,80 +58,36 @@ export default function Movies() {
     return () => {
       active = false
     }
-  }, [debouncedQuery, searchAttempt])
+  }, [debouncedQuery])
 
   const term = debouncedQuery.trim()
   const isSearching = term.length > 0
-  const searchPending = isSearching && (search?.q !== term || search.attempt !== searchAttempt)
+  const searchDone = search?.query === term
 
-  const loading = isSearching ? searchPending : listLoading
-  const error = isSearching ? (searchPending ? null : (search?.error ?? null)) : listError
-  const shows = useMemo(
-    () => (isSearching ? (search?.shows ?? []) : defaultShows),
-    [isSearching, search, defaultShows],
-  )
-
-  const retry = () => {
-    if (isSearching) {
-      setSearchAttempt((n) => n + 1)
-    } else {
-      setListLoading(true)
-      setListError(null)
-      setListAttempt((n) => n + 1)
-    }
-  }
-
+  const shows = isSearching ? (searchDone ? search.shows : []) : defaultShows
+  const loading = isSearching ? !searchDone : listLoading
+  const error = isSearching ? (searchDone ? search.error : null) : listError
 
   return (
-    <section className="page pt-10 md:pt-16">
-      <div className="grid gap-8 lg:grid-cols-12 lg:gap-8">
-        <h1 className="font-display text-display font-extrabold uppercase md:text-display-lg lg:col-span-5">
-          The catalogue
-        </h1>
-        <div className="lg:col-span-6 lg:col-start-7 lg:self-end">
-          <SearchBar value={query} onChange={setQuery} />
-        </div>
+    <section className="container-px py-12">
+      <div className="mb-3 text-center">
+        <h1 className="font-display text-3xl font-bold sm:text-4xl">Movie Listing</h1>
+        <p className="mt-2 text-sm text-muted">
+          Browse the catalogue or search for a specific title.
+        </p>
       </div>
 
-      <p className="index-line mb-8 mt-12 border-t border-rule pt-3" aria-live="polite">
-        {loading
-          ? isSearching
-            ? `Looking for “${term}”`
-            : 'Pulling the index'
-          : error
-            ? 'Nothing loaded'
-            : isSearching
-              ? `${shows.length} ${shows.length === 1 ? 'match' : 'matches'} for “${term}”, best match first`
-              : `The ${shows.length} best-rated shows, highest first. Search covers all of TVMaze.`}
-      </p>
+      <div className="mb-10 mt-6">
+        <SearchBar value={query} onChange={setQuery} />
+      </div>
 
-      <MovieGrid
-        shows={shows}
-        loading={loading}
-        error={error}
-        onDetails={setSelected}
-        onRetry={retry}
-        empty={
-          isSearching ? (
-            <>
-              <p className="font-display text-display-sm font-bold uppercase wrap-anywhere">
-                Nothing filed under &ldquo;{term}&rdquo;.
-              </p>
-              <p className="measure mt-3 text-ink-2">
-                Check the spelling, or try the original-language title. Search looks at show names
-                only, not actors or plots.
-              </p>
-              <button
-                type="button"
-                onClick={() => setQuery('')}
-                className="mt-6 bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-colors duration-150 hover:bg-accent hover:text-on-accent active:translate-y-px"
-              >
-                Clear the search
-              </button>
-            </>
-          ) : undefined
-        }
-      />
+      {isSearching && !loading && !error && (
+        <p className="mb-6 text-sm text-muted">
+          {shows.length} result{shows.length === 1 ? '' : 's'} for “{term}”
+        </p>
+      )}
+
+      <MovieGrid shows={shows} loading={loading} error={error} onDetails={setSelected} />
 
       <MovieModal show={selected} onClose={() => setSelected(null)} />
     </section>

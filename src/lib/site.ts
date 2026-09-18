@@ -1,6 +1,3 @@
-// Central place for author / branding details.
-// Edit these values to make the project your own.
-
 export const SITE = {
   brand: 'MovieExplorer',
   author: 'Md Tanvir Siddik',
